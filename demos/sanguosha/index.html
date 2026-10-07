@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>三国杀简易版</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #222;
+      color: white;
+    }
+    canvas {
+      background: #333;
+      display: block;
+      margin: 0 auto;
+    }
+    #ui {
+      text-align: center;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="1280" height="720"></canvas>
+  <div id="ui">
+    <button onclick="startGame()">开始游戏</button>
+  </div>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // -----------------数据结构------------------
+    class Card {
+      constructor(name, type, effect) {
+        this.name = name;
+        this.type = type; // 'attack', 'defense', 'trick'
+        this.effect = effect; // 执行效果
+      }
+    }
+
+    class Character {
+      constructor(name, maxHP, skill) {
+        this.name = name;
+        this.maxHP = maxHP;
+        this.hp = maxHP;
+        this.skill = skill;
+        this.hand = [];
+        this.judgementZone = []; // 判定区
+        this.identity = null; // 'lord', 'loyalist', 'rebel', 'spy'
+      }
+
+      drawCards(deck, n = 2) {
+        for (let i = 0; i < n; i++) {
+          if (deck.length > 0) {
+            this.hand.push(deck.pop());
+          }
+        }
+      }
+    }
+
+    // -------------------常量和初始化----------------------
+    const deck = [];
+    const characters = [];
+    let currentPlayerIndex = 0;
+    let phase = 'start'; // start, judge, draw, play, discard, end
+
+    function initDeck() {
+      // 动作牌
+      for (let i = 0; i < 10; i++) deck.push(new Card('Sha', 'attack', (src, tgt) => attack(src, tgt)));
+      for (let i = 0; i < 6; i++) deck.push(new Card('Shan', 'defense', () => {}));
+      for (let i = 0; i < 4; i++) deck.push(new Card('Tao', 'trick', (src) => heal(src)));
+      deck.push(new Card('Le Bu Si Shu', 'trick', (src, tgt) => tgt.judgementZone.push('Le')));
+      deck.push(new Card('Shan Dian', 'trick', (src, tgt) => tgt.judgementZone.push('Lightning')));
+      shuffle(deck);
+    }
+
+    function initCharacters() {
+      characters.length = 0;
+      const c1 = new Character('Liu Bei', 4, () => {});
+      const c2 = new Character('Cao Cao', 4, () => {});
+      const c3 = new Character('Sun Quan', 4, () => {});
+      const c4 = new Character('Lu Bu', 4, () => {});
+
+      [c1, c2, c3, c4].forEach(c => c.drawCards(deck, 4));
+
+      c1.identity = 'lord';
+      c2.identity = 'loyalist';
+      c3.identity = 'rebel';
+      c4.identity = 'spy';
+
+      characters.push(c1, c2, c3, c4);
+    }
+
+    // ------------------基础功能--------------------
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+
+    function attack(src, tgt) {
+      const hasDodge = tgt.hand.find(c => c.name === 'Shan');
+      if (hasDodge) {
+        tgt.hand.splice(tgt.hand.indexOf(hasDodge), 1);
+        log(`${tgt.name} 闪避了攻击!`);
+      } else {
+        tgt.hp--;
+        log(`${tgt.name} 受到一点伤害!`);
+      }
+    }
+
+    function heal(player) {
+      if (player.hp < player.maxHP) {
+        player.hp++;
+        log(`${player.name} 回复一点生命`);
+      }
+    }
+
+    function log(msg) {
+      console.log(msg);
+    }
+
+    function drawGameState() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+
+      characters.forEach((c, i) => {
+        ctx.fillText(`${c.name} (${c.identity}) HP: ${c.hp} Hand: ${c.hand.length}`, 50, 50 + i * 100);
+      });
+    }
+
+    function nextPhase() {
+      const player = characters[currentPlayerIndex];
+      switch (phase) {
+        case 'start':
+          phase = 'judge';
+          break;
+        case 'judge':
+          player.judgementZone.forEach(effect => {
+            if (effect === 'Le') {
+              if (Math.random() < 0.5) {
+                log(`${player.name} 被乐了!`);
+                phase = 'end';
+                drawGameState();
+                return;
+              }
+            }
+          });
+          phase = 'draw';
+          break;
+        case 'draw':
+          player.drawCards(deck, 2);
+          phase = 'play';
+          break;
+        case 'play':
+          // 简化处理，只出一张Sha
+          const target = characters.find(c => c !== player && c.hp > 0);
+          const sha = player.hand.find(c => c.name === 'Sha');
+          if (sha && target) {
+            player.hand.splice(player.hand.indexOf(sha), 1);
+            sha.effect(player, target);
+          }
+          phase = 'discard';
+          break;
+        case 'discard':
+          while (player.hand.length > player.hp) player.hand.pop();
+          phase = 'end';
+          break;
+        case 'end':
+          currentPlayerIndex = (currentPlayerIndex + 1) % characters.length;
+          phase = 'start';
+          break;
+      }
+
+      drawGameState();
+    }
+
+    function gameLoop() {
+      nextPhase();
+      if (characters.filter(c => c.hp > 0).length > 1) {
+        setTimeout(gameLoop, 2000);
+      } else {
+        const winner = characters.find(c => c.hp > 0);
+        alert(`游戏结束! ${winner.name} 胜利!`);
+      }
+    }
+
+    function startGame() {
+      initDeck();
+      initCharacters();
+      drawGameState();
+      setTimeout(gameLoop, 1000);
+    }
+  </script>
+</body>
+</html>
