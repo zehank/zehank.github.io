@@ -259,9 +259,42 @@ html[data-lang="zh"] .lt-en { display: none; }
 .hero-tagline {
   font-size: clamp(1.1rem, 2.4vw, 1.4rem);
   color: var(--text);
-  max-width: 40ch;
-  margin: 0 0 14px;
+  max-width: 46ch;
+  margin: 0 0 20px;
 }
+
+/* the four "tracks" the tagline metaphor refers to */
+.hero-tracks {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 0;
+}
+.hero-tracks li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .03);
+  transition: border-color .25s, background .25s;
+}
+.hero-tracks li:hover {
+  border-color: rgba(56, 189, 248, .55);
+  background: rgba(56, 189, 248, .07);
+}
+.track-domain {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.track-what { font-size: 13.5px; color: #c3cedd; }
+
 .hero-sub {
   color: var(--muted);
   max-width: 52ch;
